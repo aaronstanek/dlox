@@ -1,127 +1,165 @@
+let mockedTime = 0;
+let nextMockedIntervalId = 1;
+
+let mockedIntervals: {
+    f: () => void;
+    delay: number;
+    nextRunTime: number;
+    id: number;
+}[] = [];
+
+const sortMockedIntervals = () => {
+    mockedIntervals.sort((a, b) => a.nextRunTime - b.nextRunTime);
+};
+
+const runIntervals = async () => {
+    while (
+        mockedIntervals.length > 0 &&
+        mockedIntervals[0].nextRunTime <= mockedTime
+    ) {
+        const interval = mockedIntervals[0];
+        interval.f();
+        interval.nextRunTime = mockedTime + interval.delay;
+        sortMockedIntervals();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+};
+
+// @ts-ignore
+globalThis.setInterval = (f, delay) => {
+    const id = nextMockedIntervalId;
+    nextMockedIntervalId++;
+    mockedIntervals.push({
+        f,
+        delay,
+        nextRunTime: mockedTime + delay,
+        id,
+    });
+    sortMockedIntervals();
+    return id;
+};
+
+// @ts-ignore
+globalThis.clearInterval = (id) => {
+    mockedIntervals = mockedIntervals.filter((e) => e.id !== id);
+};
+
 import { makeDebouncer } from "../dist/index.cjs";
 
-test("first call to debouncer returns true", async () => {
+test("first call to debouncer returns true immediately", async () => {
     const debouncer = makeDebouncer(1000);
-    expect(await debouncer()).toEqual(true);
-});
-
-test("first call to debouncer resolves immediately", async () => {
-    const debouncer = makeDebouncer(1000);
-    const start = Date.now();
-    await debouncer();
-    const delta = Date.now() - start;
-    expect(delta).toBeLessThan(200);
+    expect(await debouncer()).toBe(true);
 });
 
 test("second consecutive call to debouncer returns true", async () => {
     const debouncer = makeDebouncer(1000);
     debouncer();
-    expect(await debouncer()).toEqual(true);
+    const secondCallPromise = debouncer();
+    mockedTime += 1000;
+    await runIntervals();
+    expect(await secondCallPromise).toBe(true);
 });
 
-test("second consecutive call to debouncer resolves after interval has passed", async () => {
+test("second consecutive call to debouncer does not resolve before interval has passed", async () => {
     const debouncer = makeDebouncer(1000);
-    const start = Date.now();
     debouncer();
-    await debouncer();
-    const delta = Date.now() - start;
-    expect(delta).toBeGreaterThan(950);
+    const secondCallPromise = debouncer();
+    let isSecondCallResolved = false;
+    (async () => {
+        await secondCallPromise;
+        isSecondCallResolved = true;
+    })();
+    mockedTime += 999;
+    await runIntervals();
+    expect(isSecondCallResolved).toBe(false);
 });
 
 test("second consecutive call to debouncer resolves immediately when the interval passes", async () => {
     const debouncer = makeDebouncer(1000);
-    const start = Date.now();
     debouncer();
-    await debouncer();
-    const delta = Date.now() - start;
-    expect(delta).toBeLessThan(1200);
+    const secondCallPromise = debouncer();
+    let isSecondCallResolved = false;
+    (async () => {
+        await secondCallPromise;
+        isSecondCallResolved = true;
+    })();
+    mockedTime += 1000;
+    await runIntervals();
+    expect(isSecondCallResolved).toBe(true);
 });
 
-test("second delayed call to debouncer returns true", async () => {
+test("second delayed call to debouncer returns true immediately", async () => {
     const debouncer = makeDebouncer(1000);
     debouncer();
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    expect(await debouncer()).toEqual(true);
-});
-
-test("second delayed call to debouncer resolves immediately", async () => {
-    const debouncer = makeDebouncer(1000);
-    debouncer();
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    const start = Date.now();
-    await debouncer();
-    const delta = Date.now() - start;
-    expect(delta).toBeLessThan(200);
+    mockedTime += 1200;
+    await runIntervals();
+    const secondCallPromise = debouncer();
+    expect(await secondCallPromise).toBe(true);
 });
 
 test("in three consecutive calls, the second call returns false", async () => {
     const debouncer = makeDebouncer(1000);
     debouncer();
-    const secondPromise = debouncer();
+    const secondCallPromise = debouncer();
     debouncer();
-    expect(await secondPromise).toEqual(false);
+    expect(await secondCallPromise).toEqual(false);
 });
 
 test("in three consecutive calls, the third call returns true", async () => {
     const debouncer = makeDebouncer(1000);
     debouncer();
     debouncer();
-    expect(await debouncer()).toEqual(true);
+    const thirdCallPromise = debouncer();
+    mockedTime += 1000;
+    await runIntervals();
+    expect(await thirdCallPromise).toBe(true);
 });
 
-test("in three consecutive calls, the second call resolves after the third call is made", async () => {
+test("in three consecutive calls, the second call resolves at the exact moment that the third call is made", async () => {
     const debouncer = makeDebouncer(1000);
     debouncer();
-    const timeOfSecondResolvePromise = (async (
-        promiseTwo: Promise<boolean>,
-    ) => {
-        await promiseTwo;
-        return Date.now();
-    })(debouncer());
-    // add a delay between the second and third calls
-    // so that if the second resolves immediately,
-    // that resolution occurs before the third call
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const timeOfThirdCall = Date.now();
+    const secondCallPromise = debouncer();
+    let timeOfSecondResolution = -1;
+    (async () => {
+        await secondCallPromise;
+        timeOfSecondResolution = mockedTime;
+    })();
+    mockedTime += 314;
+    await runIntervals();
+    const timeOfThirdCall = mockedTime;
     debouncer();
-    expect(await timeOfSecondResolvePromise).toBeGreaterThanOrEqual(
-        timeOfThirdCall,
-    );
+    await runIntervals();
+    mockedTime += 5000;
+    await runIntervals();
+    expect(timeOfSecondResolution).toBe(timeOfThirdCall);
 });
 
-test("in three consecutive calls, when the third call is made, the second call resolves immediately", async () => {
+test("third consecutive call to debouncer does not resolve before interval has passed", async () => {
     const debouncer = makeDebouncer(1000);
     debouncer();
-    const timeOfSecondResolvePromise = (async (
-        promiseTwo: Promise<boolean>,
-    ) => {
-        await promiseTwo;
-        return Date.now();
-    })(debouncer());
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const timeOfThirdCall = Date.now();
     debouncer();
-    expect(await timeOfSecondResolvePromise).toBeLessThan(
-        timeOfThirdCall + 200,
-    );
+    const thirdCallPromise = debouncer();
+    let isThirdCallResolved = false;
+    (async () => {
+        await thirdCallPromise;
+        isThirdCallResolved = true;
+    })();
+    mockedTime += 999;
+    await runIntervals();
+    expect(isThirdCallResolved).toBe(false);
 });
 
-test("in three consecutive calls, the third call resolves after interval has passed", async () => {
+test("third consecutive call to debouncer resolves immediately when the interval passes", async () => {
     const debouncer = makeDebouncer(1000);
-    const start = Date.now();
     debouncer();
     debouncer();
-    await debouncer();
-    const delta = Date.now() - start;
-    expect(delta).toBeGreaterThan(950);
-});
-
-test("in three consecutive calls, the third call resolves immediately when the interval passes", async () => {
-    const debouncer = makeDebouncer(1000);
-    const start = Date.now();
-    debouncer();
-    debouncer();
-    await debouncer();
-    const delta = Date.now() - start;
-    expect(delta).toBeLessThan(1200);
+    const thirdCallPromise = debouncer();
+    let isThirdCallResolved = false;
+    (async () => {
+        await thirdCallPromise;
+        isThirdCallResolved = true;
+    })();
+    mockedTime += 1000;
+    await runIntervals();
+    expect(isThirdCallResolved).toBe(true);
 });
