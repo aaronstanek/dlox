@@ -163,3 +163,137 @@ test("third consecutive call to debouncer resolves immediately when the interval
     await runIntervals();
     expect(isThirdCallResolved).toBe(true);
 });
+
+test("hasQueued returns false initially", async () => {
+    const debouncer = makeDebouncer(1000);
+    expect(debouncer.hasQueued()).toBe(false);
+});
+
+test("hasQueued returns false after first call", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    expect(debouncer.hasQueued()).toBe(false);
+});
+
+test("hasQueued returns true after second call", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    debouncer();
+    expect(debouncer.hasQueued()).toBe(true);
+});
+
+test("hasQueued returns false after second call resolves", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    debouncer();
+    mockedTime += 1000;
+    await runIntervals();
+    expect(debouncer.hasQueued()).toBe(false);
+});
+
+test("flush when nothing is queued returns false", async () => {
+    const debouncer = makeDebouncer(1000);
+    expect(debouncer.flush(false)).toBe(false);
+});
+
+test("flush when something is queued returns true", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    debouncer();
+    expect(debouncer.flush(false)).toBe(true);
+});
+
+test("hasQueued after flush returns false", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    debouncer();
+    debouncer.flush(false);
+    expect(debouncer.hasQueued()).toBe(false);
+});
+
+test("flush(false) causes associated promise to resolve to false immediately", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    const secondCallPromise = debouncer();
+    debouncer.flush(false);
+    expect(await secondCallPromise).toBe(false);
+});
+
+test("flush(true) causes associated promise to resolve to true immediately", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    const secondCallPromise = debouncer();
+    debouncer.flush(true);
+    expect(await secondCallPromise).toBe(true);
+});
+
+test("a new call will not resolve before the flush's interval passes", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    debouncer();
+    mockedTime += 500;
+    await runIntervals();
+    debouncer.flush(false);
+    const thirdCallPromise = debouncer();
+    let isThirdCallResolved = false;
+    (async () => {
+        await thirdCallPromise;
+        isThirdCallResolved = true;
+    })();
+    mockedTime += 999;
+    await runIntervals();
+    expect(isThirdCallResolved).toBe(false);
+});
+
+test("a new call resolves immediately when flush's interval passes", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    debouncer();
+    mockedTime += 500;
+    await runIntervals();
+    debouncer.flush(false);
+    const thirdCallPromise = debouncer();
+    let isThirdCallResolved = false;
+    (async () => {
+        await thirdCallPromise;
+        isThirdCallResolved = true;
+    })();
+    mockedTime += 1000;
+    await runIntervals();
+    expect(isThirdCallResolved).toBe(true);
+});
+
+test("close causes queued call to resolve to false immediately", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    const secondCallPromise = debouncer();
+    debouncer.close();
+    expect(await secondCallPromise).toBe(false);
+});
+
+test("hasQueued after close returns false", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    debouncer();
+    debouncer.close();
+    expect(debouncer.hasQueued()).toBe(false);
+});
+
+test("close causes future calls to debouncer to resolve to false immediately", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer();
+    debouncer();
+    debouncer.close();
+    expect(await debouncer()).toBe(false);
+});
+
+test("isClosed returns false initially", async () => {
+    const debouncer = makeDebouncer(1000);
+    expect(debouncer.isClosed()).toBe(false);
+});
+
+test("isClosed returns true after closing", async () => {
+    const debouncer = makeDebouncer(1000);
+    debouncer.close();
+    expect(debouncer.isClosed()).toBe(true);
+});
