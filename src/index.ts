@@ -1,4 +1,4 @@
-export type Throttler = {
+export type RateControl = {
     (): Promise<boolean>;
     flush: (value: boolean) => boolean;
     close: () => void;
@@ -7,7 +7,52 @@ export type Throttler = {
 
 type Resolver = (value: boolean) => void;
 
-export const makeThrottler = (intervalMs: number): Throttler => {
+export const makeDebouncer = (intervalMs: number): RateControl => {
+    let isClosed = false;
+    let queuedExecution: {
+        timeoutId: NodeJS.Timeout;
+        resolve: Resolver;
+    } | null = null;
+    const dequeue = () => {
+        queuedExecution!.resolve(true);
+        queuedExecution = null;
+    };
+    const enqueue = (resolve: Resolver) => {
+        if (isClosed) {
+            resolve(false);
+            return;
+        }
+        if (queuedExecution) {
+            clearTimeout(queuedExecution.timeoutId);
+            queuedExecution.resolve(false);
+        }
+        queuedExecution = {
+            timeoutId: setTimeout(dequeue, intervalMs),
+            resolve,
+        };
+    };
+    const returnValue = () => new Promise(enqueue);
+    returnValue.flush = (value: boolean): boolean => {
+        if (queuedExecution === null) return false;
+        clearTimeout(queuedExecution.timeoutId);
+        queuedExecution.resolve(value);
+        queuedExecution = null;
+        return true;
+    };
+    returnValue.close = () => {
+        if (isClosed) return;
+        isClosed = true;
+        if (queuedExecution) {
+            clearTimeout(queuedExecution.timeoutId);
+            queuedExecution.resolve(false);
+            queuedExecution = null;
+        }
+    };
+    returnValue.isClosed = () => isClosed;
+    return returnValue;
+};
+
+export const makeThrottler = (intervalMs: number): RateControl => {
     let isClosed = false;
     let intervalId: NodeJS.Timeout | null = null;
     let queuedResolve: Resolver | null = null;
