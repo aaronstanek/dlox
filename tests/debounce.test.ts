@@ -44,33 +44,33 @@ globalThis.clearInterval = (id) => {
     mockedIntervals = mockedIntervals.filter((e) => e.id !== id);
 };
 
-import { makeDebouncer } from "../dist/index.cjs";
+import { makeThrottler } from "../dist/index.cjs";
 
 const initIsolatedTest = () => {
     mockedTime = 0;
     nextMockedIntervalId = 1;
     mockedIntervals = [];
-    return makeDebouncer(1000);
+    return makeThrottler(1000);
 };
 
-test("first call to debouncer returns true immediately", async () => {
-    const debouncer = initIsolatedTest();
-    expect(await debouncer()).toBe(true);
+test("first call to throttler returns true immediately", async () => {
+    const throttler = initIsolatedTest();
+    expect(await throttler()).toBe(true);
 });
 
-test("second consecutive call to debouncer returns true", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    const secondCallPromise = debouncer();
+test("second consecutive call to throttler returns true", async () => {
+    const throttler = initIsolatedTest();
+    throttler();
+    const secondCallPromise = throttler();
     mockedTime += 1000;
     await runIntervals();
     expect(await secondCallPromise).toBe(true);
 });
 
-test("second consecutive call to debouncer does not resolve before interval has passed", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    const secondCallPromise = debouncer();
+test("second consecutive call to throttler does not resolve before interval has passed", async () => {
+    const throttler = initIsolatedTest();
+    throttler();
+    const secondCallPromise = throttler();
     let isSecondCallResolved = false;
     (async () => {
         await secondCallPromise;
@@ -81,10 +81,10 @@ test("second consecutive call to debouncer does not resolve before interval has 
     expect(isSecondCallResolved).toBe(false);
 });
 
-test("second consecutive call to debouncer resolves immediately when the interval passes", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    const secondCallPromise = debouncer();
+test("second consecutive call to throttler resolves immediately when the interval passes", async () => {
+    const throttler = initIsolatedTest();
+    throttler();
+    const secondCallPromise = throttler();
     let isSecondCallResolved = false;
     (async () => {
         await secondCallPromise;
@@ -95,37 +95,37 @@ test("second consecutive call to debouncer resolves immediately when the interva
     expect(isSecondCallResolved).toBe(true);
 });
 
-test("second delayed call to debouncer returns true immediately", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
+test("second delayed call to throttler returns true immediately", async () => {
+    const throttler = initIsolatedTest();
+    throttler();
     mockedTime += 1200;
     await runIntervals();
-    const secondCallPromise = debouncer();
+    const secondCallPromise = throttler();
     expect(await secondCallPromise).toBe(true);
 });
 
 test("in three consecutive calls, the second call returns false", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    const secondCallPromise = debouncer();
-    debouncer();
+    const throttler = initIsolatedTest();
+    throttler();
+    const secondCallPromise = throttler();
+    throttler();
     expect(await secondCallPromise).toEqual(false);
 });
 
 test("in three consecutive calls, the third call returns true", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    const thirdCallPromise = debouncer();
+    const throttler = initIsolatedTest();
+    throttler();
+    throttler();
+    const thirdCallPromise = throttler();
     mockedTime += 1000;
     await runIntervals();
     expect(await thirdCallPromise).toBe(true);
 });
 
 test("in three consecutive calls, the second call resolves at the exact moment that the third call is made", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    const secondCallPromise = debouncer();
+    const throttler = initIsolatedTest();
+    throttler();
+    const secondCallPromise = throttler();
     let timeOfSecondResolution = -1;
     (async () => {
         await secondCallPromise;
@@ -134,18 +134,18 @@ test("in three consecutive calls, the second call resolves at the exact moment t
     mockedTime += 314;
     await runIntervals();
     const timeOfThirdCall = mockedTime;
-    debouncer();
+    throttler();
     await runIntervals();
     mockedTime += 5000;
     await runIntervals();
     expect(timeOfSecondResolution).toBe(timeOfThirdCall);
 });
 
-test("third consecutive call to debouncer does not resolve before interval has passed", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    const thirdCallPromise = debouncer();
+test("third consecutive call to throttler does not resolve before interval has passed", async () => {
+    const throttler = initIsolatedTest();
+    throttler();
+    throttler();
+    const thirdCallPromise = throttler();
     let isThirdCallResolved = false;
     (async () => {
         await thirdCallPromise;
@@ -156,11 +156,11 @@ test("third consecutive call to debouncer does not resolve before interval has p
     expect(isThirdCallResolved).toBe(false);
 });
 
-test("third consecutive call to debouncer resolves immediately when the interval passes", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    const thirdCallPromise = debouncer();
+test("third consecutive call to throttler resolves immediately when the interval passes", async () => {
+    const throttler = initIsolatedTest();
+    throttler();
+    throttler();
+    const thirdCallPromise = throttler();
     let isThirdCallResolved = false;
     (async () => {
         await thirdCallPromise;
@@ -172,41 +172,41 @@ test("third consecutive call to debouncer resolves immediately when the interval
 });
 
 test("flush when nothing is queued returns false", async () => {
-    const debouncer = initIsolatedTest();
-    expect(debouncer.flush(false)).toBe(false);
+    const throttler = initIsolatedTest();
+    expect(throttler.flush(false)).toBe(false);
 });
 
 test("flush when something is queued returns true", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    expect(debouncer.flush(false)).toBe(true);
+    const throttler = initIsolatedTest();
+    throttler();
+    throttler();
+    expect(throttler.flush(false)).toBe(true);
 });
 
 test("flush(false) causes associated promise to resolve to false immediately", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    const secondCallPromise = debouncer();
-    debouncer.flush(false);
+    const throttler = initIsolatedTest();
+    throttler();
+    const secondCallPromise = throttler();
+    throttler.flush(false);
     expect(await secondCallPromise).toBe(false);
 });
 
 test("flush(true) causes associated promise to resolve to true immediately", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    const secondCallPromise = debouncer();
-    debouncer.flush(true);
+    const throttler = initIsolatedTest();
+    throttler();
+    const secondCallPromise = throttler();
+    throttler.flush(true);
     expect(await secondCallPromise).toBe(true);
 });
 
 test("a new call will not resolve before the flush's interval passes", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
+    const throttler = initIsolatedTest();
+    throttler();
+    throttler();
     mockedTime += 500;
     await runIntervals();
-    debouncer.flush(false);
-    const thirdCallPromise = debouncer();
+    throttler.flush(false);
+    const thirdCallPromise = throttler();
     let isThirdCallResolved = false;
     (async () => {
         await thirdCallPromise;
@@ -218,13 +218,13 @@ test("a new call will not resolve before the flush's interval passes", async () 
 });
 
 test("a new call resolves immediately when flush's interval passes", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
+    const throttler = initIsolatedTest();
+    throttler();
+    throttler();
     mockedTime += 500;
     await runIntervals();
-    debouncer.flush(false);
-    const thirdCallPromise = debouncer();
+    throttler.flush(false);
+    const thirdCallPromise = throttler();
     let isThirdCallResolved = false;
     (async () => {
         await thirdCallPromise;
@@ -236,28 +236,28 @@ test("a new call resolves immediately when flush's interval passes", async () =>
 });
 
 test("close causes queued call to resolve to false immediately", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    const secondCallPromise = debouncer();
-    debouncer.close();
+    const throttler = initIsolatedTest();
+    throttler();
+    const secondCallPromise = throttler();
+    throttler.close();
     expect(await secondCallPromise).toBe(false);
 });
 
-test("close causes future calls to debouncer to resolve to false immediately", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    debouncer.close();
-    expect(await debouncer()).toBe(false);
+test("close causes future calls to throttler to resolve to false immediately", async () => {
+    const throttler = initIsolatedTest();
+    throttler();
+    throttler();
+    throttler.close();
+    expect(await throttler()).toBe(false);
 });
 
 test("isClosed returns false initially", async () => {
-    const debouncer = initIsolatedTest();
-    expect(debouncer.isClosed()).toBe(false);
+    const throttler = initIsolatedTest();
+    expect(throttler.isClosed()).toBe(false);
 });
 
 test("isClosed returns true after closing", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer.close();
-    expect(debouncer.isClosed()).toBe(true);
+    const throttler = initIsolatedTest();
+    throttler.close();
+    expect(throttler.isClosed()).toBe(true);
 });

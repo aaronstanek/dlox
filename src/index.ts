@@ -1,4 +1,4 @@
-export type Debouncer = {
+export type Throttler = {
     (): Promise<boolean>;
     flush: (value: boolean) => boolean;
     close: () => void;
@@ -7,7 +7,7 @@ export type Debouncer = {
 
 type Resolver = (value: boolean) => void;
 
-export const makeDebouncer = (intervalMs: number): Debouncer => {
+export const makeThrottler = (intervalMs: number): Throttler => {
     let isClosed = false;
     let intervalId: NodeJS.Timeout | null = null;
     let queuedResolve: Resolver | null = null;
