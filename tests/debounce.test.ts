@@ -1,3 +1,5 @@
+const setTimeout = globalThis.setTimeout;
+
 let mockedTime = 0;
 let nextMockedIntervalId = 1;
 
@@ -19,8 +21,12 @@ const runIntervals = async () => {
     ) {
         const interval = mockedIntervals[0];
         interval.f();
-        interval.nextRunTime = mockedTime + interval.delay;
-        sortMockedIntervals();
+        if (interval.delay > 0) {
+            interval.nextRunTime = mockedTime + interval.delay;
+            sortMockedIntervals();
+        } else {
+            clearTimeout(interval.id);
+        }
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
 };
@@ -40,9 +46,26 @@ globalThis.setInterval = (f, delay) => {
 };
 
 // @ts-ignore
+globalThis.setTimeout = (f, delay) => {
+    const id = nextMockedIntervalId;
+    nextMockedIntervalId++;
+    mockedIntervals.push({
+        f,
+        delay: -1,
+        nextRunTime: mockedTime + delay,
+        id,
+    });
+    sortMockedIntervals();
+    return id;
+};
+
+// @ts-ignore
 globalThis.clearInterval = (id) => {
     mockedIntervals = mockedIntervals.filter((e) => e.id !== id);
 };
+
+// @ts-ignore
+globalThis.clearTimeout = globalThis.clearInterval;
 
 import { makeThrottler } from "../dist/index.cjs";
 
