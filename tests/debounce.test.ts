@@ -171,33 +171,6 @@ test("third consecutive call to debouncer resolves immediately when the interval
     expect(isThirdCallResolved).toBe(true);
 });
 
-test("hasQueued returns false initially", async () => {
-    const debouncer = initIsolatedTest();
-    expect(debouncer.hasQueued()).toBe(false);
-});
-
-test("hasQueued returns false after first call", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    expect(debouncer.hasQueued()).toBe(false);
-});
-
-test("hasQueued returns true after second call", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    expect(debouncer.hasQueued()).toBe(true);
-});
-
-test("hasQueued returns false after second call resolves", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    mockedTime += 1000;
-    await runIntervals();
-    expect(debouncer.hasQueued()).toBe(false);
-});
-
 test("flush when nothing is queued returns false", async () => {
     const debouncer = initIsolatedTest();
     expect(debouncer.flush(false)).toBe(false);
@@ -208,14 +181,6 @@ test("flush when something is queued returns true", async () => {
     debouncer();
     debouncer();
     expect(debouncer.flush(false)).toBe(true);
-});
-
-test("hasQueued after flush returns false", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    debouncer.flush(false);
-    expect(debouncer.hasQueued()).toBe(false);
 });
 
 test("flush(false) causes associated promise to resolve to false immediately", async () => {
@@ -276,14 +241,6 @@ test("close causes queued call to resolve to false immediately", async () => {
     const secondCallPromise = debouncer();
     debouncer.close();
     expect(await secondCallPromise).toBe(false);
-});
-
-test("hasQueued after close returns false", async () => {
-    const debouncer = initIsolatedTest();
-    debouncer();
-    debouncer();
-    debouncer.close();
-    expect(debouncer.hasQueued()).toBe(false);
 });
 
 test("close causes future calls to debouncer to resolve to false immediately", async () => {

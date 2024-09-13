@@ -1,6 +1,5 @@
 export type Debouncer = {
     (): Promise<boolean>;
-    hasQueued: () => boolean;
     flush: (value: boolean) => boolean;
     close: () => void;
     isClosed: () => boolean;
@@ -35,7 +34,6 @@ export const makeDebouncer = (intervalMs: number): Debouncer => {
         queuedResolve = resolve;
     };
     const returnValue = () => new Promise(enqueue);
-    returnValue.hasQueued = () => queuedResolve !== null;
     returnValue.flush = (value: boolean) => {
         if (queuedResolve === null) return false;
         clearInterval(intervalId!);
