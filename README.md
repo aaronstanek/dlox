@@ -15,6 +15,7 @@ Jump to:
 -   [Installation](#installation)
 -   [Basic Usage Examples](#basic-usage-examples)
 -   [API](#api)
+-   [More Examples](#more-examples)
 
 ## Installation
 
