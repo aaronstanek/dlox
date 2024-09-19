@@ -1,7 +1,20 @@
 {
     "name": "dlox",
-    "version": "1.0.0",
-    "description": "",
+    "version": "1.0.1",
+    "description": "A lightweight, promise-based debouncing and throttling library designed to help you build fast and responsive user interfaces in JavaScript and TypeScript applications.",
+    "keywords": [
+        "typescript",
+        "debounce",
+        "throttle",
+        "debouncing",
+        "throttling",
+        "promise",
+        "async",
+        "await",
+        "reactive",
+        "rate control"
+    ],
+    "homepage": "https://github.com/aaronstanek/dlox",
     "main": "dist/index.js",
     "files": [
         "dist"
